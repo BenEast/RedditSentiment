@@ -107,3 +107,5 @@ venv.bak/
 migrations/
 
 *.sqlite3
+
+config.properties
