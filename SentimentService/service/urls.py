@@ -16,6 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from service.sentiment.views import PostCommentsView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('subreddits/<str:subreddit>/comments', PostCommentsView.as_view())
 ]
