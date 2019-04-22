@@ -2,6 +2,7 @@ django
 djangorestframework
 django-filter
 django-guardian
+json
 logging
 spacy
 typing

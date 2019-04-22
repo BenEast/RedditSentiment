@@ -22,13 +22,13 @@ def get_config():
 
 
 class RedditCrawler(object):
-    __batch_size: int = 10
+    __batch_size: int = 100
     __config = get_config()
     __post_comments_path: str = '/subreddits/{}/comments'
 
     def __init__(self):
         self.__logger = logging.getLogger(self.__class__.__name__)
-        self.__logger.setLevel(20)
+        self.__logger.setLevel(logging.DEBUG)
         self.__last_batch = set()
         self.__reddit: praw.Reddit = self.__get_reddit()
 
@@ -36,7 +36,7 @@ class RedditCrawler(object):
         self.__scrape_sub_comments(self.__config['reddit']['subreddit'])
 
     def __scrape_sub_comments(self, sub_name: str):
-        comment_stream = self.__reddit.subreddit(sub_name).stream.comments(skip_existing=True)
+        comment_stream = self.__reddit.subreddit(sub_name).stream.comments()
 
         comment_data = list()
         for comment in comment_stream:
@@ -45,7 +45,7 @@ class RedditCrawler(object):
 
             comment_data.append(build_comment_data(comment))
 
-            print('Retrieved comments: {}'.format(len(comment_data)))
+            self.__logger.debug('Retrieved comments: {}'.format(len(comment_data)))
 
             if len(comment_data) == self.__batch_size:
                 self.__post_comment_batch(comment_data, sub_name)
