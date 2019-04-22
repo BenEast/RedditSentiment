@@ -1,17 +1,25 @@
 from configparser import ConfigParser
+from datetime import datetime
 import json
 import logging
 import praw
 import requests
 
 
-def build_comment_data(comment: praw.reddit.models.Comment):
+def build_comment_data(comment: praw.reddit.models.Comment, sub_name: str):
+    if not comment.distinguished:
+        comment.distinguished = False
+
     return {
         'id': comment.id,
         'body': comment.body,
         'submission_id': comment.link_id,
+        'subreddit_id': comment.subreddit_id,
+        'subreddit_name': sub_name,
         'parent_id': comment.parent_id,
-        'score': comment.score
+        'score': comment.score,
+        'created_utc': str(datetime.utcfromtimestamp(comment.created_utc)),
+        'is_distinguished': comment.distinguished
     }
 
 
@@ -28,27 +36,37 @@ class RedditCrawler(object):
 
     def __init__(self):
         self.__logger = logging.getLogger(self.__class__.__name__)
-        self.__logger.setLevel(logging.DEBUG)
+        self.__logger.setLevel(logging.WARNING)
         self.__last_batch = set()
-        self.__reddit: praw.Reddit = self.__get_reddit()
+        self.__reddit = self.__get_reddit()
 
     def crawl(self):
         self.__scrape_sub_comments(self.__config['reddit']['subreddit'])
 
     def __scrape_sub_comments(self, sub_name: str):
-        comment_stream = self.__reddit.subreddit(sub_name).stream.comments()
+        subreddit = self.__reddit.subreddit(sub_name)
+        comment_stream = subreddit.stream.comments()
+
+        load_comment_subs: bool = sub_name.lower() == 'all'
+        if load_comment_subs:
+            sub_key = subreddit.display_name + '|' + subreddit.display_name
+        else:
+            sub_key = subreddit.display_name + '|' + subreddit.id
 
         comment_data = list()
         for comment in comment_stream:
             if comment.id in self.__last_batch:
                 continue
 
-            comment_data.append(build_comment_data(comment))
+            if load_comment_subs:
+                sub = str(list(self.__reddit.info([comment.subreddit_id]))[0])
+            else:
+                sub = sub_name
 
-            self.__logger.debug('Retrieved comments: {}'.format(len(comment_data)))
+            comment_data.append(build_comment_data(comment, sub))
 
             if len(comment_data) == self.__batch_size:
-                self.__post_comment_batch(comment_data, sub_name)
+                self.__post_comment_batch(comment_data, sub_key)
                 comment_data = list()
 
     def __get_reddit(self):

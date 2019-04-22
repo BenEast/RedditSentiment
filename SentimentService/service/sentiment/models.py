@@ -4,10 +4,13 @@ from django.db import models
 class Comment(models.Model):
     comment_id = models.TextField(unique=True, max_length=20)
     submission_id = models.TextField(max_length=20)
+    subreddit_id = models.TextField(max_length=20)
+    subreddit_name = models.TextField(max_length=100)
     parent_id = models.TextField(max_length=20)
+    created_utc = models.DateTimeField(null=True, default=None)
+    is_distinguished = models.BooleanField(default=False)
     score = models.IntegerField()
     body = models.TextField()
-    subreddit = models.TextField(max_length=100)
 
 
 class CommentSentiment(models.Model):
@@ -19,6 +22,7 @@ class CommentSentiment(models.Model):
 
 
 class SubredditSentiment(models.Model):
+    subreddit_id = models.TextField(unique=True, max_length=20)
     subreddit_name = models.TextField(unique=True, max_length=100)
     positive = models.FloatField(default=0.0, blank=True)
     neutral = models.FloatField(default=0.0, blank=True)

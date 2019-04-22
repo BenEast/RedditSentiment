@@ -1,5 +1,7 @@
+from datetime import datetime
 import json
 
+import pytz
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
@@ -29,14 +31,15 @@ class PostCommentsView(APIView):
 
         count: int = 0
         request_data: dict = json.loads(request.data)
-        subreddit: str = kwargs.get(self.subreddit_url_kwarg).lower()
 
         for data in request_data:
             if not Comment.objects.filter(comment_id=data['id']).exists():
-                self.__process_comment_data(data, subreddit)
+                self.__process_comment_data(data)
                 count += 1
 
-        sub_sentiment, _ = SubredditSentiment.objects.get_or_create(subreddit_name=subreddit)
+        sub_name, sub_id = kwargs.get(self.subreddit_url_kwarg).split('|')
+
+        sub_sentiment, _ = SubredditSentiment.objects.get_or_create(subreddit_id=sub_id, subreddit_name=sub_name)
         count += sub_sentiment.count
 
         sub_sentiment.negative = ((sub_sentiment.negative * sub_sentiment.count) + self.total_negative) / count
@@ -48,14 +51,17 @@ class PostCommentsView(APIView):
 
         return Response(status=HTTP_200_OK)
 
-    def __process_comment_data(self, data: dict, subreddit: str):
+    def __process_comment_data(self, data: dict):
         comment = Comment()
         comment.comment_id = data['id']
-        comment.parent_id = data['parent_id']
         comment.submission_id = data['submission_id']
+        comment.subreddit_id = data['subreddit_id']
+        comment.subreddit_name = data['subreddit_name']
+        comment.parent_id = data['parent_id']
         comment.score = data['score']
         comment.body = data['body']
-        comment.subreddit = subreddit
+        comment.created_utc = datetime.fromisoformat(data['created_utc']).astimezone(pytz.UTC)
+        comment.is_distinguished = data['is_distinguished']
         comment.save()
 
         analysis: dict = self.sentiment_analyzer.analyze(data['body'])
